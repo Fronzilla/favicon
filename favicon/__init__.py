@@ -1,0 +1,1 @@
+from .favicon import FaviconManager
