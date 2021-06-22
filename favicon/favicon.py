@@ -46,6 +46,7 @@ class FaviconManager:
         :param url: Целевой url
         :return: True, если у целевого url была определена scheme и netloc
         """
+
         result = urlparse(url)
         return all([result.scheme, result.netloc])
 
@@ -63,6 +64,12 @@ class FaviconManager:
               "format": "png"
         }
         """
+
+        if not url.startswith('http'):
+            url = 'https://' + url
+
+        if not self.validate_url(url):
+            return {'error': 'not a valid url'}
 
         request_kwargs.setdefault('headers', self.HEADERS)
         request_kwargs.setdefault('allow_redirects', True)
