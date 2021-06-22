@@ -64,9 +64,6 @@ class FaviconManager:
         }
         """
 
-        if not self.validate_url(url):
-            return {'error': 'not a valid url'}
-
         request_kwargs.setdefault('headers', self.HEADERS)
         request_kwargs.setdefault('allow_redirects', True)
         request_kwargs.setdefault('verify', False)
