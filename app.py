@@ -1,13 +1,11 @@
 import os
 import requests
-import nest_asyncio
 
 from typing import Optional
 from aiohttp import web
 from favicon import FaviconManager
 
 manager = FaviconManager()
-nest_asyncio.apply()
 
 
 async def get_favicon(link: str):
