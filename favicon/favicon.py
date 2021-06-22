@@ -4,17 +4,25 @@
 
 __author__ = 'av.nikitin'
 
+import json
 import os
+import sys
 import re
-import requests
+import requests_async
+import configparser
 
 from typing import Dict, Optional, Set, Tuple
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
 
-
 SIZE_RE = re.compile(r'(?P<width>\d{2,4})x(?P<height>\d{2,4})', flags=re.IGNORECASE)
+config = configparser.ConfigParser(
+    converters={
+        'list': lambda x: [i.strip() for i in x.split(',')]
+    }
+)
+config.read(os.path.join(sys.path[0], "settings.ini"))
 
 
 @dataclass(frozen=True)
@@ -26,30 +34,19 @@ class Icon:
 
 
 class FaviconManager:
+    HEADERS = json.loads(config["favicon"]["HEADERS"])
+    META_NAMES = config.getlist('favicon', 'META_NAMES')
+    LINK_RELS = config.getlist("favicon", "LINK_RELS")
 
-    META_NAMES = ['msapplication-TileImage', 'og:image']
+    @staticmethod
+    def validate_url(url):
+        """
+        :return:
+        """
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
 
-    HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) '
-        'AppleWebKit/537.36 (KHTML, like Gecko) '
-        'Chrome/33.0.1750.152 Safari/537.36'
-    }
-    LINK_RELS = [
-        'icon',
-        'shortcut icon',
-        'apple-touch-icon',
-        'apple-touch-icon-precomposed',
-    ]
-
-    @property
-    def headers(self):
-        return self.HEADERS
-
-    @headers.setter
-    def headers(self, value):
-        self.HEADERS = value
-
-    def get(self, url: str, biggest: bool = True, **request_kwargs) -> Dict:
+    async def get(self, url: str, biggest: bool = True, **request_kwargs) -> Dict:
         """
         По переданному url получить все favicon
         :param url: Целевая страница.
@@ -58,16 +55,19 @@ class FaviconManager:
         :return: Json формата
         """
 
+        if not self.validate_url(url):
+            return {'error': 'not a valid url'}
+
         request_kwargs.setdefault('headers', self.HEADERS)
         request_kwargs.setdefault('allow_redirects', True)
         request_kwargs.setdefault('verify', False)
 
-        response = requests.get(url, **request_kwargs)
+        response = await requests_async.get(url, **request_kwargs)
         response.raise_for_status()
 
         icons = set()
 
-        default_icon = self.default(response.url, **request_kwargs)
+        default_icon = await self.default(response.url, **request_kwargs)
         if default_icon:
             icons.add(default_icon)
 
@@ -143,7 +143,7 @@ class FaviconManager:
         return icons
 
     @staticmethod
-    def default(url: str, **request_kwargs: Dict) -> Optional[Icon]:
+    async def default(url: str, **request_kwargs: Dict) -> Optional[Icon]:
         """
         Получить default favicon.ico.
         :param url: Целевой Url.
@@ -154,7 +154,7 @@ class FaviconManager:
         parsed = urlparse(url)
 
         favicon_url = urlunparse((parsed.scheme, parsed.netloc, 'favicon.ico', '', '', ''))
-        response = requests.head(favicon_url, **request_kwargs)
+        response = await requests_async.head(favicon_url, **request_kwargs)
 
         if response.status_code == 200:
             return Icon(response.url, 0, 0, 'ico')
@@ -192,4 +192,3 @@ class FaviconManager:
         height = ''.join(c for c in height if c.isdigit())
 
         return int(width), int(height)
-

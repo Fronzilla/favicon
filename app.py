@@ -1,26 +1,44 @@
-from typing import Optional
-from flask import Flask, request
-from flask import jsonify
+import os
+import requests
+import nest_asyncio
 
+from typing import Optional
+from aiohttp import web
 from favicon import FaviconManager
 
-app = Flask(__name__)
+manager = FaviconManager()
+nest_asyncio.apply()
 
 
-def get_favicon(link: str):
+async def get_favicon(link: str):
     """
     :param link:
     :return:
     """
-    return FaviconManager().get(link)
+    return await manager.get(link)
 
 
-@app.route("/")
-def faviconroute():
-    url: Optional[str] = request.args.get('url', None)
-    result = get_favicon(url)
-    return jsonify(result)
+async def handle(request):
+    """
+    :return:
+    """
+    url: Optional[str] = request.query['url']
+    try:
+        result = await get_favicon(url)
+    except requests.exceptions.ConnectionError:
+        return web.json_response({'error': 'nodename nor servname provided, or not known'}, status=500)
+
+    return web.json_response(result, status=200)
 
 
-if __name__ == '__main__':
-    app.run()
+async def init():
+    app = web.Application()
+    app.router.add_get("/", handle)
+    return app
+
+
+if __name__ == "__main__":
+    application = init()
+    web.run_app(application, port=os.getenv('PORT'))
+
+# проверить размер иконки и если она квардратнеая - больний приортрирет
