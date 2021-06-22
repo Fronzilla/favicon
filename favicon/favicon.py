@@ -4,16 +4,16 @@
 
 __author__ = 'av.nikitin'
 
+import configparser
 import json
 import os
-import sys
 import re
-import requests_async
-import configparser
-
-from typing import Dict, Optional, Set, Tuple
+import sys
 from dataclasses import dataclass
+from typing import Dict, Optional, Set, Tuple
 from urllib.parse import urljoin, urlparse, urlunparse
+
+import requests_async
 from bs4 import BeautifulSoup
 
 SIZE_RE = re.compile(r'(?P<width>\d{2,4})x(?P<height>\d{2,4})', flags=re.IGNORECASE)
@@ -34,14 +34,17 @@ class Icon:
 
 
 class FaviconManager:
+    """ Менеджер, реализующий логику поиска favicon.ico на целевой url'е """
     HEADERS = json.loads(config["favicon"]["HEADERS"])
     META_NAMES = config.getlist('favicon', 'META_NAMES')
     LINK_RELS = config.getlist("favicon", "LINK_RELS")
 
     @staticmethod
-    def validate_url(url):
+    def validate_url(url) -> bool:
         """
-        :return:
+        Валидация url
+        :param url: Целевой url
+        :return: True, если у целевого url была определена scheme и netloc
         """
         result = urlparse(url)
         return all([result.scheme, result.netloc])
@@ -52,7 +55,13 @@ class FaviconManager:
         :param url: Целевая страница.
         :param biggest: Возвращать самое большую favicon или все
         :param request_kwargs: Аргументы заголовков запроса
-        :return: Json формата
+        :return: Dict формата:
+            {
+              "url": "https://github.githubassets.com/favicons/favicon.png",
+              "width": 150,
+              "height": 150,
+              "format": "png"
+        }
         """
 
         if not self.validate_url(url):
@@ -75,7 +84,8 @@ class FaviconManager:
         if link_icons:
             icons.update(link_icons)
 
-        result = sorted(icons, key=lambda i: i.width + i.height, reverse=True)
+        # Паттернг сортировки - квадратные изображения наибольшего размера
+        result = sorted(icons, key=lambda i: (i.width == i.height, i.width + i.height), reverse=True)
 
         if not result:
             return {}
@@ -99,7 +109,7 @@ class FaviconManager:
 
         :param url: Целевой url.
         :param html: HTML страница.
-        :return:
+        :return: Set[Icon]
         """
 
         soup = BeautifulSoup(html, features='html.parser')
@@ -162,9 +172,9 @@ class FaviconManager:
     @staticmethod
     def is_absolute(url: str) -> bool:
         """
-        Проверка того, является ли Url абсолютным
+        Проверка того, является ли url абсолютным
         :param url: Целевой Url
-        :return:
+        :return: True, если целевой url абсолютный
         """
         return bool(urlparse(url).netloc)
 

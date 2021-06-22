@@ -1,16 +1,17 @@
 import os
-import requests
+from typing import Optional, Dict
 
-from typing import Optional
+import requests
 from aiohttp import web
+
 from favicon import FaviconManager
 
 manager = FaviconManager()
 
 
-async def get_favicon(link: str):
+async def get_favicon(link: str) -> Dict:
     """
-    :param link:
+    :param link: Целевая страница
     :return:
     """
     return await manager.get(link)
@@ -18,7 +19,7 @@ async def get_favicon(link: str):
 
 async def handle(request):
     """
-    :return:
+    :return: Response
     """
     url: Optional[str] = request.query['url']
     try:
@@ -30,6 +31,9 @@ async def handle(request):
 
 
 async def init():
+    """
+    :return: Application
+    """
     app = web.Application()
     app.router.add_get("/", handle)
     return app
